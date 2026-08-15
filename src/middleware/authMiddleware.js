@@ -3,14 +3,20 @@ const jwt = require('jsonwebtoken');
 /**
  * Verifica el JWT enviado en el header "Authorization: Bearer <token>".
  * Si es valido, adjunta { id, role } en req.user y continua.
- * Esta listo para que los modulos posteriores (registro, login, /auth/me,
- * autorizacion por roles, etc.) lo utilicen como dependencia.
  */
 const protect = (req, res, next) => {
+  if (!process.env.JWT_SECRET) {
+    return res.status(500).json({ message: 'Error de configuracion del servidor' });
+  }
+
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!authHeader) {
     return res.status(401).json({ message: 'No autorizado, token no proporcionado' });
+  }
+
+  if (!authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Formato de token invalido' });
   }
 
   const token = authHeader.split(' ')[1];
