@@ -127,13 +127,32 @@ const login = async (req, res) => {
 };
 
 // POST /auth/logout
+// En JWT, el logout es manejado en el cliente eliminando el token almacenado.
 const logout = async (req, res) => {
-  res.status(501).json({ message: 'Logout no implementado todavia' });
+  return res.status(200).json({ message: 'Sesion cerrada correctamente.' });
 };
 
 // GET /auth/me (requiere middleware "protect")
 const getMe = async (req, res) => {
-  res.status(501).json({ message: '/auth/me no implementado todavia' });
+  try {
+    // password ya viene excluido por el select:false del schema
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado.' });
+    }
+
+    return res.status(200).json({
+      id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      profileImage: user.profileImage,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Error interno del servidor al obtener el perfil.' });
+  }
 };
 
 module.exports = { register, login, logout, getMe };
