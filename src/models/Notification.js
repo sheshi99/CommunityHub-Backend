@@ -7,7 +7,7 @@ const notificationSchema = new mongoose.Schema(
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'El usuario destinatario es obligatorio'],
+      required: true,
     },
     event: {
       type: mongoose.Schema.Types.ObjectId,
@@ -21,7 +21,7 @@ const notificationSchema = new mongoose.Schema(
     },
     message: {
       type: String,
-      required: [true, 'El mensaje de la notificacion es obligatorio'],
+      required: true, 
       trim: true,
     },
     read: {

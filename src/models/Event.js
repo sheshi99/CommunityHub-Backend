@@ -6,35 +6,35 @@ const eventSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      required: [true, 'El titulo del evento es obligatorio'],
+      required: true, 
       trim: true,
     },
     description: {
       type: String,
-      required: [true, 'La descripcion del evento es obligatoria'],
+      required: true,
       trim: true,
     },
     category: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Category',
-      required: [true, 'La categoria del evento es obligatoria'],
+      required: true, 
     },
     date: {
       type: Date,
-      required: [true, 'La fecha del evento es obligatoria'],
+      required: true,
     },
     time: {
       type: String,
-      required: [true, 'La hora del evento es obligatoria'],
+      required: true,
     },
     location: {
       type: String,
-      required: [true, 'La ubicacion del evento es obligatoria'],
+      required: true,
       trim: true,
     },
     maxCapacity: {
       type: Number,
-      required: [true, 'La capacidad maxima es obligatoria'],
+      required: true,
       min: [1, 'La capacidad maxima debe ser al menos 1'],
     },
     image: {
@@ -44,7 +44,7 @@ const eventSchema = new mongoose.Schema(
     organizer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'El organizador del evento es obligatorio'],
+      required: true,
     },
     status: {
       type: String,

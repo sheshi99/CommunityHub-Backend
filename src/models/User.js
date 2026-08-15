@@ -6,29 +6,26 @@ const userSchema = new mongoose.Schema(
   {
     firstName: {
       type: String,
-      required: [true, 'El nombre es obligatorio'],
+      required: true,
       trim: true,
     },
     lastName: {
       type: String,
-      required: [true, 'El apellido es obligatorio'],
+      required: true,
       trim: true,
     },
     email: {
       type: String,
-      required: [true, 'El email es obligatorio'],
+      required: true, 
       unique: true,
       trim: true,
       lowercase: true,
-      match: [/^\S+@\S+\.\S+$/, 'El email no tiene un formato valido'],
     },
     password: {
       type: String,
-      required: [true, 'La contrasena es obligatoria'],
-      minlength: [6, 'La contrasena debe tener al menos 6 caracteres'],
+      required: true,
       select: false, // nunca se devuelve por defecto en las consultas
-      // Debe almacenarse siempre hasheada con bcrypt/bcryptjs, nunca en texto plano.
-      // El hasheo se realizara en la capa de servicio/controlador de Auth.
+
     },
     profileImage: {
       type: String,

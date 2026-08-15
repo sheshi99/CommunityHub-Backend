@@ -7,12 +7,12 @@ const registrationSchema = new mongoose.Schema(
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'El usuario es obligatorio'],
+      required: true,
     },
     event: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Event',
-      required: [true, 'El evento es obligatorio'],
+      required: true, 
     },
     status: {
       type: String,
