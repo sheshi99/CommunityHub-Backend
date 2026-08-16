@@ -137,6 +137,9 @@ const updateUser = async (req, res) => {
       if (!esAdmin) {
         return res.status(403).json({ message: 'No tenes permiso para cambiar el rol.' });
       }
+      if (esDueno) {
+        return res.status(403).json({ message: 'No podes cambiar el rol de tu propia cuenta.' });
+      }
       if (!ROLES.includes(role)) {
         return res.status(400).json({ message: 'El rol indicado no es valido.' });
       }
