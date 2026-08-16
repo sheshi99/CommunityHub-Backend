@@ -1,10 +1,15 @@
 const express = require('express');
-const { getCategories } = require('../controllers/categoryController');
+const { getCategories, createCategory, updateCategory, deleteCategory } = require('../controllers/categoryController');
+const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-// Solo lectura: las categorias son datos fijos cargados por seeder,
-// no tienen CRUD propio (ver scripts/seed-categories.js)
+// Consultar categorias es publico (lo necesita, entre otros, el form de crear evento)
 router.get('/', getCategories);
+
+// Administrar categorias es exclusivo de ADMIN
+router.post('/', protect, authorize('ADMIN'), createCategory);
+router.put('/:id', protect, authorize('ADMIN'), updateCategory);
+router.delete('/:id', protect, authorize('ADMIN'), deleteCategory);
 
 module.exports = router;
