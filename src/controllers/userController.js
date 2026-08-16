@@ -1,6 +1,10 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const Event = require('../models/Event');
+const Registration = require('../models/Registration');
+const Favorite = require('../models/Favorite');
+const Notification = require('../models/Notification');
 const { ROLES } = User;
 const { validateEmailFormat, validatePasswordComplexity } = require('../utils/validators');
 
@@ -167,6 +171,21 @@ const deleteUser = async (req, res) => {
 
     if (!user) {
       return res.status(404).json({ message: 'Usuario no encontrado.' });
+    }
+
+    // Evita dejar referencias huerfanas. Una cuenta con actividad historica
+    // debe conservarse para mantener la integridad de la plataforma.
+    const [hasEvents, hasRegistrations, hasFavorites, hasNotifications] = await Promise.all([
+      Event.exists({ organizer: id }),
+      Registration.exists({ user: id }),
+      Favorite.exists({ user: id }),
+      Notification.exists({ user: id }),
+    ]);
+
+    if (hasEvents || hasRegistrations || hasFavorites || hasNotifications) {
+      return res.status(409).json({
+        message: 'No se puede eliminar el usuario porque tiene actividad asociada en la plataforma.',
+      });
     }
 
     await user.deleteOne();
