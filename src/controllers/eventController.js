@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Event = require('../models/Event');
 const Category = require('../models/Category');
+const Registration = require('../models/Registration');
 
 // Valida los datos recibidos para crear una actividad
 const validateEventData = ({ title, description, category, date, time, location, maxCapacity }) => {
@@ -77,19 +78,97 @@ const createEvent = async (req, res) => {
 };
 
 // GET /api/events
+// Soporta busqueda de texto y filtros por query params:
+// search, category, date, location, available, organizer, status
 const getEvents = async (req, res) => {
   try {
-    const filtros = {};
-    if (req.query.category) filtros.category = req.query.category;
-    if (req.query.status) filtros.status = req.query.status;
-    if (req.query.organizer) filtros.organizer = req.query.organizer;
+    const { search, category, date, location, available, organizer, status } = req.query;
 
-    const events = await Event.find(filtros)
-      .populate('category', 'name')
-      .populate('organizer', 'firstName lastName email')
-      .sort({ date: 1 });
+    if (category && !mongoose.isValidObjectId(category)) {
+      return res.status(400).json({ message: 'La categoria no es valida.' });
+    }
+    if (organizer && !mongoose.isValidObjectId(organizer)) {
+      return res.status(400).json({ message: 'El organizador no es valido.' });
+    }
 
-    return res.status(200).json(events);
+    const match = {};
+
+    // Busqueda de texto libre sobre titulo y descripcion
+    if (search && search.trim()) {
+      const regex = new RegExp(search.trim(), 'i');
+      match.$or = [{ title: regex }, { description: regex }];
+    }
+
+    if (category) match.category = new mongoose.Types.ObjectId(category);
+    if (organizer) match.organizer = new mongoose.Types.ObjectId(organizer);
+    if (status) match.status = status;
+    if (location && location.trim()) {
+      match.location = new RegExp(location.trim(), 'i');
+    }
+
+    if (date) {
+      const parsedDate = new Date(date);
+      if (isNaN(parsedDate.getTime())) {
+        return res.status(400).json({ message: 'La fecha indicada no es valida.' });
+      }
+      const inicioDia = new Date(parsedDate);
+      inicioDia.setHours(0, 0, 0, 0);
+      const finDia = new Date(parsedDate);
+      finDia.setHours(23, 59, 59, 999);
+      match.date = { $gte: inicioDia, $lte: finDia };
+    }
+
+    // La disponibilidad no vive en Event: se calcula comparando maxCapacity
+    // contra la cantidad de inscripciones CONFIRMED en Registration.
+    const pipeline = [
+      { $match: match },
+      {
+        $lookup: {
+          from: Registration.collection.name,
+          let: { eventId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [{ $eq: ['$event', '$$eventId'] }, { $eq: ['$status', 'CONFIRMED'] }],
+                },
+              },
+            },
+            { $count: 'total' },
+          ],
+          as: 'confirmedRegistrations',
+        },
+      },
+      {
+        $addFields: {
+          confirmedCount: { $ifNull: [{ $arrayElemAt: ['$confirmedRegistrations.total', 0] }, 0] },
+        },
+      },
+      {
+        $addFields: {
+          availableSpots: { $subtract: ['$maxCapacity', '$confirmedCount'] },
+        },
+      },
+    ];
+
+    if (available !== undefined) {
+      const quiereDisponibles = available === 'true';
+      pipeline.push({
+        $match: quiereDisponibles ? { availableSpots: { $gt: 0 } } : { availableSpots: { $lte: 0 } },
+      });
+    }
+
+    pipeline.push({ $project: { confirmedRegistrations: 0 } });
+    pipeline.push({ $sort: { date: 1 } });
+
+    const events = await Event.aggregate(pipeline);
+
+    const populatedEvents = await Event.populate(events, [
+      { path: 'category', select: 'name' },
+      { path: 'organizer', select: 'firstName lastName email' },
+    ]);
+
+    return res.status(200).json(populatedEvents);
   } catch (error) {
     return res.status(500).json({ message: 'Error interno del servidor al consultar las actividades.' });
   }
@@ -112,7 +191,15 @@ const getEventById = async (req, res) => {
       return res.status(404).json({ message: 'Actividad no encontrada.' });
     }
 
-    return res.status(200).json(event);
+    // Misma logica de disponibilidad que getEvents: se calcula contra
+    // las inscripciones CONFIRMED, ya que no vive como campo en Event.
+    const confirmedCount = await Registration.countDocuments({
+      event: event._id,
+      status: 'CONFIRMED',
+    });
+    const availableSpots = event.maxCapacity - confirmedCount;
+
+    return res.status(200).json({ ...event.toObject(), confirmedCount, availableSpots });
   } catch (error) {
     return res.status(500).json({ message: 'Error interno del servidor al consultar la actividad.' });
   }
