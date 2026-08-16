@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 
-const NOTIFICATION_TYPES = ['EVENT_REMINDER', 'EVENT_UPDATED', 'EVENT_CANCELLED', 'REGISTRATION_CONFIRMED', 'GENERAL'];
+const NOTIFICATION_TYPES = [
+  'EVENT_REMINDER',
+  'EVENT_UPDATED',
+  'EVENT_CANCELLED',
+  'REGISTRATION_CONFIRMED',
+  'EVENT_CAPACITY_REACHED',
+  'GENERAL',
+];
 
 const notificationSchema = new mongoose.Schema(
   {
