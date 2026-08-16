@@ -6,6 +6,7 @@ const {
   updateEvent,
   deleteEvent,
 } = require('../controllers/eventController');
+const { registerForEvent, cancelRegistration } = require('../controllers/registrationController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
@@ -18,5 +19,9 @@ router.get('/:id', getEventById);
 router.post('/', protect, authorize('ORGANIZER', 'ADMIN'), createEvent);
 router.put('/:id', protect, authorize('ORGANIZER', 'ADMIN'), updateEvent);
 router.delete('/:id', protect, authorize('ORGANIZER', 'ADMIN'), deleteEvent);
+
+// Inscripcion a una actividad: cualquier usuario autenticado
+router.post('/:id/register', protect, registerForEvent);
+router.delete('/:id/register', protect, cancelRegistration);
 
 module.exports = router;
