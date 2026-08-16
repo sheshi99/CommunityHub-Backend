@@ -1,6 +1,41 @@
 const mongoose = require('mongoose');
 const Registration = require('../models/Registration');
 const Event = require('../models/Event');
+const {
+  notifyEventCapacityReached,
+  notifyEventCapacityAvailable,
+} = require('../services/capacityNotificationService');
+
+const notifyOrganizerIfFull = async (event, confirmedCountBeforeRegistration) => {
+  if (confirmedCountBeforeRegistration + 1 !== event.maxCapacity) return;
+
+  try {
+    await notifyEventCapacityReached({
+      eventId: event._id,
+      organizerId: event.organizer,
+      eventTitle: event.title,
+      maxCapacity: event.maxCapacity,
+    });
+  } catch (error) {
+    // La inscripcion ya fue confirmada: un fallo externo de AWS no debe
+    // revertirla ni devolver un error falso al participante.
+    console.error(`No se pudo invocar la Lambda de cupo completo: ${error.message}`);
+  }
+};
+
+const clearFullCapacityNotification = async (event) => {
+  try {
+    await notifyEventCapacityAvailable({
+      eventId: event._id,
+      organizerId: event.organizer,
+      eventTitle: event.title,
+      maxCapacity: event.maxCapacity,
+    });
+  } catch (error) {
+    // La cancelacion ya fue aplicada y no debe fallar por un servicio externo.
+    console.error(`No se pudo limpiar la notificacion de cupo completo: ${error.message}`);
+  }
+};
 
 // POST /api/events/:id/register
 const registerForEvent = async (req, res) => {
@@ -39,6 +74,7 @@ const registerForEvent = async (req, res) => {
       // (el indice unico user+event no permite crear un segundo documento).
       registration.status = 'CONFIRMED';
       await registration.save();
+      await notifyOrganizerIfFull(event, confirmedCount);
       return res.status(200).json(registration);
     }
 
@@ -47,6 +83,8 @@ const registerForEvent = async (req, res) => {
       event: eventId,
       status: 'CONFIRMED',
     });
+
+    await notifyOrganizerIfFull(event, confirmedCount);
 
     return res.status(201)
       .location(`/api/events/${eventId}/register`)
@@ -78,8 +116,23 @@ const cancelRegistration = async (req, res) => {
       return res.status(404).json({ message: 'No estas inscripto en esta actividad.' });
     }
 
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Actividad no encontrada.' });
+    }
+
+    const confirmedCount = await Registration.countDocuments({
+      event: eventId,
+      status: 'CONFIRMED',
+    });
+    const wasFull = confirmedCount >= event.maxCapacity;
+
     registration.status = 'CANCELLED';
     await registration.save();
+
+    if (wasFull) {
+      await clearFullCapacityNotification(event);
+    }
 
     return res.status(200).json({ message: 'Inscripcion cancelada correctamente.' });
   } catch (error) {
