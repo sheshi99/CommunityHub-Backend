@@ -1,18 +1,7 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
-
-
-// Valida complejidad de la contrasena
-const validatePassword = (password) => {
-  const hasLower = /[a-z]/.test(password);
-  const hasUpper = /[A-Z]/.test(password);
-  const hasNumber = /\d/.test(password);
-  const hasSpecial = /[@$!%*?&.#_-]/.test(password);
-  const minLength = password.length >= 8;
-
-  return hasLower && hasUpper && hasNumber && hasSpecial && minLength;
-};
+const { validateEmailFormat, validatePasswordComplexity } = require('../utils/validators');
 
 // Valida los datos recibidos en el registro
 const validateRegistrationData = ({ firstName, lastName, email, password }) => {
@@ -25,12 +14,11 @@ const validateRegistrationData = ({ firstName, lastName, email, password }) => {
     return 'Todos los campos son obligatorios.';
   }
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email.trim())) {
+  if (!validateEmailFormat(email.trim())) {
     return 'El formato del correo electronico no es valido.';
   }
 
-  if (!validatePassword(password.trim())) {
+  if (!validatePasswordComplexity(password.trim())) {
     return 'La contrasena debe tener al menos 8 caracteres, incluir mayuscula, minuscula, numero y caracter especial.';
   }
 
@@ -93,8 +81,7 @@ const login = async (req, res) => {
     return res.status(400).json({ message: 'Correo y contrasena son requeridos.' });
   }
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email.trim())) {
+  if (!validateEmailFormat(email.trim())) {
     return res.status(400).json({ message: 'El formato del correo no es valido.' });
   }
 
