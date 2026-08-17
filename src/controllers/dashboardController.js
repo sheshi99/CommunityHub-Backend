@@ -6,23 +6,20 @@ const Notification = require('../models/Notification');
 
 const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
-const buildChartSeries = (items, colors = []) => ({
+const buildChartSeries = (items) => ({
   labels: items.map((item) => item.label),
   datasets: [
     {
       label: 'Cantidad',
       data: items.map((item) => item.value),
-      backgroundColor: colors.length ? colors : ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'],
-      borderRadius: 8,
     },
   ],
 });
 
-const buildSummaryCard = (label, value, hint = '', color = '#4F46E5') => ({
+const buildSummaryCard = (label, value, hint = '') => ({
   label,
   value,
   hint,
-  color,
 });
 
 const getMonthlyRegistrationTrend = async () => {
@@ -117,27 +114,25 @@ const getAdminDashboard = async () => {
     generatedAt: new Date().toISOString(),
     stats: adminStats,
     summary: [
-      buildSummaryCard('Usuarios', registeredUsers, 'Total del sistema', '#4F46E5'),
-      buildSummaryCard('Organizadores', organizers, 'roles activos', '#8B5CF6'),
-      buildSummaryCard('Eventos', activities, 'actividades registradas', '#10B981'),
-      buildSummaryCard('Inscripciones', registrations, 'total confirmadas', '#F59E0B'),
+      buildSummaryCard('Usuarios', registeredUsers, 'Total del sistema'),
+      buildSummaryCard('Organizadores', organizers, 'roles activos'),
+      buildSummaryCard('Eventos', activities, 'actividades registradas'),
+      buildSummaryCard('Inscripciones', registrations, 'total confirmadas'),
     ],
     charts: {
       usersByRole: buildChartSeries(
         ['ADMIN', 'ORGANIZER', 'USER'].map((role) => ({
           label: role,
           value: roleMap[role] || 0,
-        })),
-        ['#4F46E5', '#8B5CF6', '#10B981']
+        }))
       ),
       eventsByStatus: buildChartSeries(
         ['DRAFT', 'PUBLISHED', 'CANCELLED', 'FINISHED'].map((status) => ({
           label: status,
           value: statusMap[status] || 0,
-        })),
-        ['#E2E8F0', '#22C55E', '#F97316', '#64748B']
+        }))
       ),
-      monthlyRegistrations: buildChartSeries(monthlyRegistrations, ['#06B6D4', '#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#FB7185']),
+      monthlyRegistrations: buildChartSeries(monthlyRegistrations),
     },
   };
 };
@@ -195,25 +190,23 @@ const getOrganizerDashboard = async (userId) => {
       cancelledRegistrations,
     },
     summary: [
-      buildSummaryCard('Eventos', activities, 'total creados', '#4F46E5'),
-      buildSummaryCard('Publicados', activeActivities, 'activos en curso', '#10B981'),
-      buildSummaryCard('Inscripciones', registrations, 'participantes totales', '#F59E0B'),
-      buildSummaryCard('Confirmadas', confirmedRegistrations, 'asistencias confirmadas', '#22C55E'),
+      buildSummaryCard('Eventos', activities, 'total creados'),
+      buildSummaryCard('Publicados', activeActivities, 'activos en curso'),
+      buildSummaryCard('Inscripciones', registrations, 'participantes totales'),
+      buildSummaryCard('Confirmadas', confirmedRegistrations, 'asistencias confirmadas'),
     ],
     charts: {
       eventsByStatus: buildChartSeries(
         ['DRAFT', 'PUBLISHED', 'CANCELLED', 'FINISHED'].map((status) => ({
           label: status,
           value: statusMap[status] || 0,
-        })),
-        ['#E2E8F0', '#22C55E', '#F97316', '#64748B']
+        }))
       ),
       topEvents: buildChartSeries(
         topEvents.map((event) => ({
           label: event.title,
           value: event.registrationsCount,
-        })),
-        ['#4F46E5', '#8B5CF6', '#10B981', '#F59E0B', '#06B6D4']
+        }))
       ),
     },
   };
@@ -223,28 +216,55 @@ const getUserDashboard = async (userId) => {
   const confirmedFilter = { user: userId, status: 'CONFIRMED' };
   const cancelledFilter = { user: userId, status: 'CANCELLED' };
   const registeredEventIds = await Registration.find(confirmedFilter).distinct('event');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const historyFilter = {
+    _id: { $in: registeredEventIds },
+    $or: [
+      { status: 'FINISHED' },
+      { date: { $lt: today } },
+    ],
+  };
+  const upcomingFilter = {
+    _id: { $in: registeredEventIds },
+    status: 'PUBLISHED',
+    date: { $gte: today },
+  };
 
   const [
     confirmedRegistrations,
     cancelledRegistrations,
     favorites,
     unreadNotifications,
+    upcomingCount,
     upcomingActivities,
+    historyCount,
+    historyActivities,
+    recentNotifications,
     upcomingByMonth,
   ] = await Promise.all([
     Registration.countDocuments(confirmedFilter),
     Registration.countDocuments(cancelledFilter),
     Favorite.countDocuments({ user: userId }),
     Notification.countDocuments({ user: userId, read: false }),
-    Event.find({
-      _id: { $in: registeredEventIds },
-      status: 'PUBLISHED',
-      date: { $gte: new Date() },
-    })
+    Event.countDocuments(upcomingFilter),
+    Event.find(upcomingFilter)
       .select('title date time location image category')
       .populate('category', 'name')
       .sort({ date: 1 })
       .limit(3),
+    Event.countDocuments(historyFilter),
+    Event.find(historyFilter)
+      .select('title date time location image category status')
+      .populate('category', 'name')
+      .sort({ date: -1 })
+      .limit(5),
+    Notification.find({ user: userId })
+      .select('type message read event createdAt')
+      .populate('event', 'title date status')
+      .sort({ createdAt: -1 })
+      .limit(5),
     Registration.aggregate([
       {
         $match: {
@@ -280,17 +300,21 @@ const getUserDashboard = async (userId) => {
     role: 'USER',
     generatedAt: new Date().toISOString(),
     stats: {
+      registeredActivities: confirmedRegistrations,
       confirmedRegistrations,
       cancelledRegistrations,
       favorites,
+      history: historyCount,
+      notifications: unreadNotifications,
       unreadNotifications,
-      upcomingActivities: upcomingActivities.length,
+      upcomingActivities: upcomingCount,
     },
     summary: [
-      buildSummaryCard('Inscripciones', confirmedRegistrations, 'confirmadas', '#4F46E5'),
-      buildSummaryCard('Favoritos', favorites, 'eventos guardados', '#8B5CF6'),
-      buildSummaryCard('Notificaciones', unreadNotifications, 'sin leer', '#F59E0B'),
-      buildSummaryCard('Próximos', upcomingActivities.length, 'eventos por asistir', '#10B981'),
+      buildSummaryCard('Inscripciones', confirmedRegistrations, 'confirmadas'),
+      buildSummaryCard('Favoritos', favorites, 'eventos guardados'),
+      buildSummaryCard('Historial', historyCount, 'actividades finalizadas'),
+      buildSummaryCard('Notificaciones', unreadNotifications, 'sin leer'),
+      buildSummaryCard('Próximos', upcomingCount, 'eventos por asistir'),
     ],
     charts: {
       activityOverview: buildChartSeries(
@@ -298,12 +322,13 @@ const getUserDashboard = async (userId) => {
           { label: 'Inscripciones', value: confirmedRegistrations },
           { label: 'Favoritos', value: favorites },
           { label: 'No leídas', value: unreadNotifications },
-        ],
-        ['#4F46E5', '#8B5CF6', '#F59E0B']
+        ]
       ),
-      upcomingByMonth: buildChartSeries(monthlySummary, ['#10B981', '#22C55E', '#8B5CF6', '#4F46E5', '#F59E0B', '#FB7185', '#06B6D4', '#3B82F6', '#A78BFA', '#14B8A6', '#F97316', '#94A3B8']),
+      upcomingByMonth: buildChartSeries(monthlySummary),
     },
     upcomingActivities,
+    historyActivities,
+    recentNotifications,
   };
 };
 
