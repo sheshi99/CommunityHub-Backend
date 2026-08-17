@@ -52,6 +52,12 @@ const registerForEvent = async (req, res) => {
       return res.status(404).json({ message: 'Actividad no encontrada.' });
     }
 
+    if (event.organizer.toString() === req.user.id) {
+      return res.status(403).json({
+        message: 'No puedes inscribirte en una actividad que organizas.',
+      });
+    }
+
     if (event.status !== 'PUBLISHED') {
       return res.status(400).json({ message: 'Solo es posible inscribirse a actividades publicadas.' });
     }
