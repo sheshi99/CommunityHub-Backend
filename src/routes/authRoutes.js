@@ -4,8 +4,7 @@ const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-// Rutas base de autenticacion, listas para que se complete su logica
-// en una fase posterior. Actualmente los controladores responden 501.
+// Rutas de autenticacion
 router.post('/register', register);
 router.post('/login', login);
 router.post('/logout', protect, logout);
