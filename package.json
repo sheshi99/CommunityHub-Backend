@@ -7,7 +7,8 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test:auth": "node scripts/test-auth.js",
-    "seed:categories": "node scripts/seed-categories.js"
+    "seed:categories": "node scripts/seed-categories.js",
+    "seed:dashboard": "node scripts/seed-dashboard.js"
   },
   "license": "ISC",
   "dependencies": {
