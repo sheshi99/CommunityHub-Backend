@@ -6,17 +6,17 @@ const jwt = require('jsonwebtoken');
  */
 const protect = (req, res, next) => {
   if (!process.env.JWT_SECRET) {
-    return res.status(500).json({ message: 'Error de configuracion del servidor' });
+    return res.status(500).json({ success: false, message: 'Error de configuracion del servidor' });
   }
 
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
-    return res.status(401).json({ message: 'No autorizado, token no proporcionado' });
+    return res.status(401).json({ success: false, message: 'No autorizado, token no proporcionado' });
   }
 
   if (!authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Formato de token invalido' });
+    return res.status(401).json({ success: false, message: 'Formato de token invalido' });
   }
 
   const token = authHeader.split(' ')[1];
@@ -26,7 +26,7 @@ const protect = (req, res, next) => {
     req.user = { id: decoded.sub, role: decoded.role };
     next();
   } catch (error) {
-    return res.status(401).json({ message: 'No autorizado, token invalido o expirado' });
+    return res.status(401).json({ success: false, message: 'No autorizado, token invalido o expirado' });
   }
 };
 
@@ -38,7 +38,7 @@ const protect = (req, res, next) => {
 const authorize = (...allowedRoles) => {
   return (req, res, next) => {
     if (!req.user || !allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ message: 'No tiene permisos para realizar esta accion' });
+      return res.status(403).json({ success: false, message: 'No tiene permisos para realizar esta accion' });
     }
     next();
   };

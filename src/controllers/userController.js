@@ -29,7 +29,7 @@ const getUsers = async (req, res) => {
     const filtros = {};
     if (req.query.role) {
       if (!ROLES.includes(req.query.role)) {
-        return res.status(400).json({ message: 'El rol indicado no es valido.' });
+        return res.status(400).json({ success: false, message: 'El rol indicado no es valido.' });
       }
       filtros.role = req.query.role;
     }
@@ -38,7 +38,7 @@ const getUsers = async (req, res) => {
 
     return res.status(200).json(users.map(toSafeUser));
   } catch (error) {
-    return res.status(500).json({ message: 'Error interno del servidor al consultar los usuarios.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al consultar los usuarios.' });
   }
 };
 
@@ -47,26 +47,26 @@ const getUserById = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.isValidObjectId(id)) {
-    return res.status(400).json({ message: 'El id del usuario no es valido.' });
+    return res.status(400).json({ success: false, message: 'El id del usuario no es valido.' });
   }
 
   const esDueno = req.user.id === id;
   const esAdmin = req.user.role === 'ADMIN';
 
   if (!esDueno && !esAdmin) {
-    return res.status(403).json({ message: 'No tenes permiso para consultar este usuario.' });
+    return res.status(403).json({ success: false, message: 'No tenes permiso para consultar este usuario.' });
   }
 
   try {
     const user = await User.findById(id);
 
     if (!user) {
-      return res.status(404).json({ message: 'Usuario no encontrado.' });
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
     }
 
     return res.status(200).json(toSafeUser(user));
   } catch (error) {
-    return res.status(500).json({ message: 'Error interno del servidor al consultar el usuario.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al consultar el usuario.' });
   }
 };
 
@@ -75,35 +75,35 @@ const updateUser = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.isValidObjectId(id)) {
-    return res.status(400).json({ message: 'El id del usuario no es valido.' });
+    return res.status(400).json({ success: false, message: 'El id del usuario no es valido.' });
   }
 
   try {
     const user = await User.findById(id);
 
     if (!user) {
-      return res.status(404).json({ message: 'Usuario no encontrado.' });
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
     }
 
     const esDueno = req.user.id === id;
     const esAdmin = req.user.role === 'ADMIN';
 
     if (!esDueno && !esAdmin) {
-      return res.status(403).json({ message: 'No tenes permiso para modificar este usuario.' });
+      return res.status(403).json({ success: false, message: 'No tenes permiso para modificar este usuario.' });
     }
 
     const { firstName, lastName, email, profileImage, password, role } = req.body;
 
     if (firstName !== undefined) {
       if (!firstName.trim()) {
-        return res.status(400).json({ message: 'El nombre no puede estar vacio.' });
+        return res.status(400).json({ success: false, message: 'El nombre no puede estar vacio.' });
       }
       user.firstName = firstName.trim();
     }
 
     if (lastName !== undefined) {
       if (!lastName.trim()) {
-        return res.status(400).json({ message: 'El apellido no puede estar vacio.' });
+        return res.status(400).json({ success: false, message: 'El apellido no puede estar vacio.' });
       }
       user.lastName = lastName.trim();
     }
@@ -111,11 +111,11 @@ const updateUser = async (req, res) => {
     if (email !== undefined) {
       const emailNormalizado = email.trim().toLowerCase();
       if (!validateEmailFormat(emailNormalizado)) {
-        return res.status(400).json({ message: 'El formato del correo electronico no es valido.' });
+        return res.status(400).json({ success: false, message: 'El formato del correo electronico no es valido.' });
       }
       const emailEnUso = await User.findOne({ email: emailNormalizado, _id: { $ne: id } });
       if (emailEnUso) {
-        return res.status(400).json({ message: 'El correo electronico ya esta registrado.' });
+        return res.status(400).json({ success: false, message: 'El correo electronico ya esta registrado.' });
       }
       user.email = emailNormalizado;
     }
@@ -127,6 +127,7 @@ const updateUser = async (req, res) => {
     if (password !== undefined) {
       if (!validatePasswordComplexity(password.trim())) {
         return res.status(400).json({
+          success: false,
           message: 'La contrasena debe tener al menos 8 caracteres, incluir mayuscula, minuscula, numero y caracter especial.',
         });
       }
@@ -135,13 +136,13 @@ const updateUser = async (req, res) => {
 
     if (role !== undefined) {
       if (!esAdmin) {
-        return res.status(403).json({ message: 'No tenes permiso para cambiar el rol.' });
+        return res.status(403).json({ success: false, message: 'No tenes permiso para cambiar el rol.' });
       }
       if (esDueno) {
-        return res.status(403).json({ message: 'No podes cambiar el rol de tu propia cuenta.' });
+        return res.status(403).json({ success: false, message: 'No podes cambiar el rol de tu propia cuenta.' });
       }
       if (!ROLES.includes(role)) {
-        return res.status(400).json({ message: 'El rol indicado no es valido.' });
+        return res.status(400).json({ success: false, message: 'El rol indicado no es valido.' });
       }
       user.role = role;
     }
@@ -151,9 +152,9 @@ const updateUser = async (req, res) => {
     return res.status(200).json(toSafeUser(updatedUser));
   } catch (error) {
     if (error.name === 'ValidationError') {
-      return res.status(400).json({ message: error.message });
+      return res.status(400).json({ success: false, message: error.message });
     }
-    return res.status(500).json({ message: 'Error interno del servidor al actualizar el usuario.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al actualizar el usuario.' });
   }
 };
 
@@ -162,18 +163,18 @@ const deleteUser = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.isValidObjectId(id)) {
-    return res.status(400).json({ message: 'El id del usuario no es valido.' });
+    return res.status(400).json({ success: false, message: 'El id del usuario no es valido.' });
   }
 
   if (id === req.user.id) {
-    return res.status(400).json({ message: 'No podes eliminar tu propia cuenta desde este endpoint.' });
+    return res.status(400).json({ success: false, message: 'No podes eliminar tu propia cuenta desde este endpoint.' });
   }
 
   try {
     const user = await User.findById(id);
 
     if (!user) {
-      return res.status(404).json({ message: 'Usuario no encontrado.' });
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
     }
 
     // Evita dejar referencias huerfanas. Una cuenta con actividad historica
@@ -187,6 +188,7 @@ const deleteUser = async (req, res) => {
 
     if (hasEvents || hasRegistrations || hasFavorites || hasNotifications) {
       return res.status(409).json({
+        success: false,
         message: 'No se puede eliminar el usuario porque tiene actividad asociada en la plataforma.',
       });
     }
@@ -195,7 +197,7 @@ const deleteUser = async (req, res) => {
 
     return res.status(200).json({ message: 'Usuario eliminado correctamente.' });
   } catch (error) {
-    return res.status(500).json({ message: 'Error interno del servidor al eliminar el usuario.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al eliminar el usuario.' });
   }
 };
 

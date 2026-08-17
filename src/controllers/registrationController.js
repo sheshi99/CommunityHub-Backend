@@ -42,37 +42,38 @@ const registerForEvent = async (req, res) => {
   const { id: eventId } = req.params;
 
   if (!mongoose.isValidObjectId(eventId)) {
-    return res.status(400).json({ message: 'El id de la actividad no es valido.' });
+    return res.status(400).json({ success: false, message: 'El id de la actividad no es valido.' });
   }
 
   try {
     const event = await Event.findById(eventId);
 
     if (!event) {
-      return res.status(404).json({ message: 'Actividad no encontrada.' });
+      return res.status(404).json({ success: false, message: 'Actividad no encontrada.' });
     }
 
     if (event.organizer.toString() === req.user.id) {
       return res.status(403).json({
+        success: false,
         message: 'No puedes inscribirte en una actividad que organizas.',
       });
     }
 
     if (event.status !== 'PUBLISHED') {
-      return res.status(400).json({ message: 'Solo es posible inscribirse a actividades publicadas.' });
+      return res.status(400).json({ success: false, message: 'Solo es posible inscribirse a actividades publicadas.' });
     }
 
     let registration = await Registration.findOne({ user: req.user.id, event: eventId });
 
     if (registration && registration.status === 'CONFIRMED') {
-      return res.status(409).json({ message: 'Ya estas inscripto en esta actividad.' });
+      return res.status(409).json({ success: false, message: 'Ya estas inscripto en esta actividad.' });
     }
 
     // El cupo se calcula contra las inscripciones CONFIRMED actuales,
     // igual que la disponibilidad que expone GET /api/events.
     const confirmedCount = await Registration.countDocuments({ event: eventId, status: 'CONFIRMED' });
     if (confirmedCount >= event.maxCapacity) {
-      return res.status(409).json({ message: 'No hay cupos disponibles para esta actividad.' });
+      return res.status(409).json({ success: false, message: 'No hay cupos disponibles para esta actividad.' });
     }
 
     if (registration) {
@@ -97,9 +98,9 @@ const registerForEvent = async (req, res) => {
       .json(registration);
   } catch (error) {
     if (error.code === 11000) {
-      return res.status(409).json({ message: 'Ya estas inscripto en esta actividad.' });
+      return res.status(409).json({ success: false, message: 'Ya estas inscripto en esta actividad.' });
     }
-    return res.status(500).json({ message: 'Error interno del servidor al procesar la inscripcion.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al procesar la inscripcion.' });
   }
 };
 
@@ -108,7 +109,7 @@ const cancelRegistration = async (req, res) => {
   const { id: eventId } = req.params;
 
   if (!mongoose.isValidObjectId(eventId)) {
-    return res.status(400).json({ message: 'El id de la actividad no es valido.' });
+    return res.status(400).json({ success: false, message: 'El id de la actividad no es valido.' });
   }
 
   try {
@@ -119,12 +120,12 @@ const cancelRegistration = async (req, res) => {
     });
 
     if (!registration) {
-      return res.status(404).json({ message: 'No estas inscripto en esta actividad.' });
+      return res.status(404).json({ success: false, message: 'No estas inscripto en esta actividad.' });
     }
 
     const event = await Event.findById(eventId);
     if (!event) {
-      return res.status(404).json({ message: 'Actividad no encontrada.' });
+      return res.status(404).json({ success: false, message: 'Actividad no encontrada.' });
     }
 
     const confirmedCount = await Registration.countDocuments({
@@ -142,7 +143,7 @@ const cancelRegistration = async (req, res) => {
 
     return res.status(200).json({ message: 'Inscripcion cancelada correctamente.' });
   } catch (error) {
-    return res.status(500).json({ message: 'Error interno del servidor al cancelar la inscripcion.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al cancelar la inscripcion.' });
   }
 };
 
@@ -162,7 +163,7 @@ const getMyRegistrations = async (req, res) => {
 
     return res.status(200).json(registrations);
   } catch (error) {
-    return res.status(500).json({ message: 'Error interno del servidor al consultar las inscripciones.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al consultar las inscripciones.' });
   }
 };
 

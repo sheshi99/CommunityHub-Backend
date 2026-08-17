@@ -7,14 +7,14 @@ const addFavorite = async (req, res) => {
   const { id: eventId } = req.params;
 
   if (!mongoose.isValidObjectId(eventId)) {
-    return res.status(400).json({ message: 'El id de la actividad no es valido.' });
+    return res.status(400).json({ success: false, message: 'El id de la actividad no es valido.' });
   }
 
   try {
     const eventExists = await Event.exists({ _id: eventId });
 
     if (!eventExists) {
-      return res.status(404).json({ message: 'Actividad no encontrada.' });
+      return res.status(404).json({ success: false, message: 'Actividad no encontrada.' });
     }
 
     const favorite = await Favorite.create({
@@ -27,9 +27,9 @@ const addFavorite = async (req, res) => {
       .json(favorite);
   } catch (error) {
     if (error.code === 11000) {
-      return res.status(409).json({ message: 'La actividad ya esta en tus favoritos.' });
+      return res.status(409).json({ success: false, message: 'La actividad ya esta en tus favoritos.' });
     }
-    return res.status(500).json({ message: 'Error interno del servidor al agregar el favorito.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al agregar el favorito.' });
   }
 };
 
@@ -38,7 +38,7 @@ const removeFavorite = async (req, res) => {
   const { id: eventId } = req.params;
 
   if (!mongoose.isValidObjectId(eventId)) {
-    return res.status(400).json({ message: 'El id de la actividad no es valido.' });
+    return res.status(400).json({ success: false, message: 'El id de la actividad no es valido.' });
   }
 
   try {
@@ -48,12 +48,12 @@ const removeFavorite = async (req, res) => {
     });
 
     if (!favorite) {
-      return res.status(404).json({ message: 'La actividad no esta en tus favoritos.' });
+      return res.status(404).json({ success: false, message: 'La actividad no esta en tus favoritos.' });
     }
 
     return res.status(200).json({ message: 'Actividad eliminada de favoritos correctamente.' });
   } catch (error) {
-    return res.status(500).json({ message: 'Error interno del servidor al eliminar el favorito.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al eliminar el favorito.' });
   }
 };
 
@@ -73,7 +73,7 @@ const getMyFavorites = async (req, res) => {
 
     return res.status(200).json(favorites);
   } catch (error) {
-    return res.status(500).json({ message: 'Error interno del servidor al consultar los favoritos.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al consultar los favoritos.' });
   }
 };
 

@@ -78,11 +78,11 @@ const login = async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !email.trim() || !password || !password.trim()) {
-    return res.status(400).json({ message: 'Correo y contrasena son requeridos.' });
+    return res.status(400).json({ success: false, message: 'Correo y contrasena son requeridos.' });
   }
 
   if (!validateEmailFormat(email.trim())) {
-    return res.status(400).json({ message: 'El formato del correo no es valido.' });
+    return res.status(400).json({ success: false, message: 'El formato del correo no es valido.' });
   }
 
   try {
@@ -90,12 +90,12 @@ const login = async (req, res) => {
     const user = await User.findOne({ email: email.trim().toLowerCase() }).select('+password');
 
     if (!user) {
-      return res.status(401).json({ message: 'Correo o contrasena incorrectos.' });
+      return res.status(401).json({ success: false, message: 'Correo o contrasena incorrectos.' });
     }
 
     const isPasswordValid = await bcrypt.compare(password.trim(), user.password);
     if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Correo o contrasena incorrectos.' });
+      return res.status(401).json({ success: false, message: 'Correo o contrasena incorrectos.' });
     }
 
     const token = generateToken(user._id, user.role);
@@ -109,7 +109,7 @@ const login = async (req, res) => {
       role: user.role,
     });
   } catch (error) {
-    return res.status(500).json({ message: 'Error interno del servidor al iniciar sesion.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al iniciar sesion.' });
   }
 };
 
@@ -126,7 +126,7 @@ const getMe = async (req, res) => {
     const user = await User.findById(req.user.id);
 
     if (!user) {
-      return res.status(404).json({ message: 'Usuario no encontrado.' });
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
     }
 
     return res.status(200).json({
@@ -138,7 +138,7 @@ const getMe = async (req, res) => {
       profileImage: user.profileImage,
     });
   } catch (error) {
-    return res.status(500).json({ message: 'Error interno del servidor al obtener el perfil.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al obtener el perfil.' });
   }
 };
 

@@ -8,7 +8,7 @@ const getCategories = async (req, res) => {
     const categories = await Category.find().sort({ name: 1 });
     return res.status(200).json(categories);
   } catch (error) {
-    return res.status(500).json({ message: 'Error interno del servidor al consultar las categorias.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al consultar las categorias.' });
   }
 };
 
@@ -17,7 +17,7 @@ const createCategory = async (req, res) => {
   const { name, description } = req.body;
 
   if (!name || !name.trim()) {
-    return res.status(400).json({ message: 'El nombre de la categoria es obligatorio.' });
+    return res.status(400).json({ success: false, message: 'El nombre de la categoria es obligatorio.' });
   }
 
   try {
@@ -26,7 +26,7 @@ const createCategory = async (req, res) => {
     // Chequeo case-insensitive para evitar duplicados como "Cultura" vs "cultura"
     const yaExiste = await Category.findOne({ name: new RegExp(`^${nombreTrim}$`, 'i') });
     if (yaExiste) {
-      return res.status(409).json({ message: 'Ya existe una categoria con ese nombre.' });
+      return res.status(409).json({ success: false, message: 'Ya existe una categoria con ese nombre.' });
     }
 
     const newCategory = new Category({
@@ -41,12 +41,12 @@ const createCategory = async (req, res) => {
       .json(savedCategory);
   } catch (error) {
     if (error.code === 11000) {
-      return res.status(409).json({ message: 'Ya existe una categoria con ese nombre.' });
+      return res.status(409).json({ success: false, message: 'Ya existe una categoria con ese nombre.' });
     }
     if (error.name === 'ValidationError') {
-      return res.status(400).json({ message: error.message });
+      return res.status(400).json({ success: false, message: error.message });
     }
-    return res.status(500).json({ message: 'Error interno del servidor al crear la categoria.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al crear la categoria.' });
   }
 };
 
@@ -55,21 +55,21 @@ const updateCategory = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.isValidObjectId(id)) {
-    return res.status(400).json({ message: 'El id de la categoria no es valido.' });
+    return res.status(400).json({ success: false, message: 'El id de la categoria no es valido.' });
   }
 
   try {
     const category = await Category.findById(id);
 
     if (!category) {
-      return res.status(404).json({ message: 'Categoria no encontrada.' });
+      return res.status(404).json({ success: false, message: 'Categoria no encontrada.' });
     }
 
     const { name, description } = req.body;
 
     if (name !== undefined) {
       if (!name.trim()) {
-        return res.status(400).json({ message: 'El nombre de la categoria no puede estar vacio.' });
+        return res.status(400).json({ success: false, message: 'El nombre de la categoria no puede estar vacio.' });
       }
       const nombreTrim = name.trim();
       const yaExiste = await Category.findOne({
@@ -77,7 +77,7 @@ const updateCategory = async (req, res) => {
         _id: { $ne: id },
       });
       if (yaExiste) {
-        return res.status(409).json({ message: 'Ya existe una categoria con ese nombre.' });
+        return res.status(409).json({ success: false, message: 'Ya existe una categoria con ese nombre.' });
       }
       category.name = nombreTrim;
     }
@@ -91,12 +91,12 @@ const updateCategory = async (req, res) => {
     return res.status(200).json(updatedCategory);
   } catch (error) {
     if (error.code === 11000) {
-      return res.status(409).json({ message: 'Ya existe una categoria con ese nombre.' });
+      return res.status(409).json({ success: false, message: 'Ya existe una categoria con ese nombre.' });
     }
     if (error.name === 'ValidationError') {
-      return res.status(400).json({ message: error.message });
+      return res.status(400).json({ success: false, message: error.message });
     }
-    return res.status(500).json({ message: 'Error interno del servidor al actualizar la categoria.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al actualizar la categoria.' });
   }
 };
 
@@ -105,14 +105,14 @@ const deleteCategory = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.isValidObjectId(id)) {
-    return res.status(400).json({ message: 'El id de la categoria no es valido.' });
+    return res.status(400).json({ success: false, message: 'El id de la categoria no es valido.' });
   }
 
   try {
     const category = await Category.findById(id);
 
     if (!category) {
-      return res.status(404).json({ message: 'Categoria no encontrada.' });
+      return res.status(404).json({ success: false, message: 'Categoria no encontrada.' });
     }
 
     // No se permite borrar una categoria que ya tiene actividades asociadas,
@@ -120,6 +120,7 @@ const deleteCategory = async (req, res) => {
     const eventosAsociados = await Event.countDocuments({ category: id });
     if (eventosAsociados > 0) {
       return res.status(409).json({
+        success: false,
         message: 'No se puede eliminar la categoria porque tiene actividades asociadas.',
       });
     }
@@ -128,7 +129,7 @@ const deleteCategory = async (req, res) => {
 
     return res.status(200).json({ message: 'Categoria eliminada correctamente.' });
   } catch (error) {
-    return res.status(500).json({ message: 'Error interno del servidor al eliminar la categoria.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al eliminar la categoria.' });
   }
 };
 

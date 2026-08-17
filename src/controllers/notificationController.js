@@ -8,7 +8,7 @@ const getMyNotifications = async (req, res) => {
 
     if (req.query.read !== undefined) {
       if (!['true', 'false'].includes(req.query.read)) {
-        return res.status(400).json({ message: 'El filtro read debe ser true o false.' });
+        return res.status(400).json({ success: false, message: 'El filtro read debe ser true o false.' });
       }
       filters.read = req.query.read === 'true';
     }
@@ -19,7 +19,7 @@ const getMyNotifications = async (req, res) => {
 
     return res.status(200).json(notifications);
   } catch (error) {
-    return res.status(500).json({ message: 'Error interno del servidor al consultar las notificaciones.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al consultar las notificaciones.' });
   }
 };
 
@@ -29,7 +29,7 @@ const getUnreadCount = async (req, res) => {
     const count = await Notification.countDocuments({ user: req.user.id, read: false });
     return res.status(200).json({ count });
   } catch (error) {
-    return res.status(500).json({ message: 'Error interno del servidor al contar las notificaciones.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al contar las notificaciones.' });
   }
 };
 
@@ -38,7 +38,7 @@ const markAsRead = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.isValidObjectId(id)) {
-    return res.status(400).json({ message: 'El id de la notificacion no es valido.' });
+    return res.status(400).json({ success: false, message: 'El id de la notificacion no es valido.' });
   }
 
   try {
@@ -49,12 +49,12 @@ const markAsRead = async (req, res) => {
     ).populate('event', 'title date time location status');
 
     if (!notification) {
-      return res.status(404).json({ message: 'Notificacion no encontrada.' });
+      return res.status(404).json({ success: false, message: 'Notificacion no encontrada.' });
     }
 
     return res.status(200).json(notification);
   } catch (error) {
-    return res.status(500).json({ message: 'Error interno del servidor al actualizar la notificacion.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al actualizar la notificacion.' });
   }
 };
 
@@ -71,7 +71,7 @@ const markAllAsRead = async (req, res) => {
       updatedCount: result.modifiedCount,
     });
   } catch (error) {
-    return res.status(500).json({ message: 'Error interno del servidor al actualizar las notificaciones.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al actualizar las notificaciones.' });
   }
 };
 

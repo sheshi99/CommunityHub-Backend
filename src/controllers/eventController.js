@@ -47,12 +47,12 @@ const createEvent = async (req, res) => {
   try {
     const validationError = validateEventData({ title, description, category, date, time, location, maxCapacity });
     if (validationError) {
-      return res.status(400).json({ message: validationError });
+      return res.status(400).json({ success: false, message: validationError });
     }
 
     const categoriaExiste = await Category.findById(category);
     if (!categoriaExiste) {
-      return res.status(400).json({ message: 'La categoria indicada no existe.' });
+      return res.status(400).json({ success: false, message: 'La categoria indicada no existe.' });
     }
 
     const newEvent = new Event({
@@ -73,7 +73,7 @@ const createEvent = async (req, res) => {
       .location(`/api/events/${savedEvent._id}`)
       .json(savedEvent);
   } catch (error) {
-    return res.status(500).json({ message: 'Error interno del servidor al crear la actividad.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al crear la actividad.' });
   }
 };
 
@@ -85,10 +85,10 @@ const getEvents = async (req, res) => {
     const { search, category, date, location, available, organizer, status } = req.query;
 
     if (category && !mongoose.isValidObjectId(category)) {
-      return res.status(400).json({ message: 'La categoria no es valida.' });
+      return res.status(400).json({ success: false, message: 'La categoria no es valida.' });
     }
     if (organizer && !mongoose.isValidObjectId(organizer)) {
-      return res.status(400).json({ message: 'El organizador no es valido.' });
+      return res.status(400).json({ success: false, message: 'El organizador no es valido.' });
     }
 
     const match = {};
@@ -109,7 +109,7 @@ const getEvents = async (req, res) => {
     if (date) {
       const parsedDate = new Date(date);
       if (isNaN(parsedDate.getTime())) {
-        return res.status(400).json({ message: 'La fecha indicada no es valida.' });
+        return res.status(400).json({ success: false, message: 'La fecha indicada no es valida.' });
       }
       const inicioDia = new Date(parsedDate);
       inicioDia.setHours(0, 0, 0, 0);
@@ -170,7 +170,7 @@ const getEvents = async (req, res) => {
 
     return res.status(200).json(populatedEvents);
   } catch (error) {
-    return res.status(500).json({ message: 'Error interno del servidor al consultar las actividades.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al consultar las actividades.' });
   }
 };
 
@@ -179,7 +179,7 @@ const getEventById = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.isValidObjectId(id)) {
-    return res.status(400).json({ message: 'El id de la actividad no es valido.' });
+    return res.status(400).json({ success: false, message: 'El id de la actividad no es valido.' });
   }
 
   try {
@@ -188,7 +188,7 @@ const getEventById = async (req, res) => {
       .populate('organizer', 'firstName lastName email');
 
     if (!event) {
-      return res.status(404).json({ message: 'Actividad no encontrada.' });
+      return res.status(404).json({ success: false, message: 'Actividad no encontrada.' });
     }
 
     // Misma logica de disponibilidad que getEvents: se calcula contra
@@ -201,7 +201,7 @@ const getEventById = async (req, res) => {
 
     return res.status(200).json({ ...event.toObject(), confirmedCount, availableSpots });
   } catch (error) {
-    return res.status(500).json({ message: 'Error interno del servidor al consultar la actividad.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al consultar la actividad.' });
   }
 };
 
@@ -210,14 +210,14 @@ const updateEvent = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.isValidObjectId(id)) {
-    return res.status(400).json({ message: 'El id de la actividad no es valido.' });
+    return res.status(400).json({ success: false, message: 'El id de la actividad no es valido.' });
   }
 
   try {
     const event = await Event.findById(id);
 
     if (!event) {
-      return res.status(404).json({ message: 'Actividad no encontrada.' });
+      return res.status(404).json({ success: false, message: 'Actividad no encontrada.' });
     }
 
     // Un organizador solo puede modificar sus propias actividades; el admin puede cualquiera
@@ -225,32 +225,32 @@ const updateEvent = async (req, res) => {
     const esAdmin = req.user.role === 'ADMIN';
 
     if (!esDueno && !esAdmin) {
-      return res.status(403).json({ message: 'No tenes permiso para modificar esta actividad.' });
+      return res.status(403).json({ success: false, message: 'No tenes permiso para modificar esta actividad.' });
     }
 
     const { title, description, category, date, time, location, maxCapacity, image, status } = req.body;
 
     if (title !== undefined) {
       if (!title.trim()) {
-        return res.status(400).json({ message: 'El titulo no puede estar vacio.' });
+        return res.status(400).json({ success: false, message: 'El titulo no puede estar vacio.' });
       }
       event.title = title.trim();
     }
 
     if (description !== undefined) {
       if (!description.trim()) {
-        return res.status(400).json({ message: 'La descripcion no puede estar vacia.' });
+        return res.status(400).json({ success: false, message: 'La descripcion no puede estar vacia.' });
       }
       event.description = description.trim();
     }
 
     if (category !== undefined) {
       if (!mongoose.isValidObjectId(category)) {
-        return res.status(400).json({ message: 'La categoria no es valida.' });
+        return res.status(400).json({ success: false, message: 'La categoria no es valida.' });
       }
       const categoriaExiste = await Category.findById(category);
       if (!categoriaExiste) {
-        return res.status(400).json({ message: 'La categoria indicada no existe.' });
+        return res.status(400).json({ success: false, message: 'La categoria indicada no existe.' });
       }
       event.category = category;
     }
@@ -258,26 +258,26 @@ const updateEvent = async (req, res) => {
     if (date !== undefined) {
       const parsedDate = new Date(date);
       if (isNaN(parsedDate.getTime())) {
-        return res.status(400).json({ message: 'La fecha no es valida.' });
+        return res.status(400).json({ success: false, message: 'La fecha no es valida.' });
       }
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
       if (parsedDate < hoy) {
-        return res.status(400).json({ message: 'No se permiten actividades con fecha pasada.' });
+        return res.status(400).json({ success: false, message: 'No se permiten actividades con fecha pasada.' });
       }
       event.date = date;
     }
 
     if (time !== undefined) {
       if (!time.trim()) {
-        return res.status(400).json({ message: 'La hora no puede estar vacia.' });
+        return res.status(400).json({ success: false, message: 'La hora no puede estar vacia.' });
       }
       event.time = time.trim();
     }
 
     if (location !== undefined) {
       if (!location.trim()) {
-        return res.status(400).json({ message: 'La ubicacion no puede estar vacia.' });
+        return res.status(400).json({ success: false, message: 'La ubicacion no puede estar vacia.' });
       }
       event.location = location.trim();
     }
@@ -285,7 +285,7 @@ const updateEvent = async (req, res) => {
     if (maxCapacity !== undefined) {
       const capacidad = Number(maxCapacity);
       if (isNaN(capacidad) || capacidad <= 0) {
-        return res.status(400).json({ message: 'La capacidad maxima debe ser un numero mayor a 0.' });
+        return res.status(400).json({ success: false, message: 'La capacidad maxima debe ser un numero mayor a 0.' });
       }
       event.maxCapacity = capacidad;
     }
@@ -303,9 +303,9 @@ const updateEvent = async (req, res) => {
     return res.status(200).json(updatedEvent);
   } catch (error) {
     if (error.name === 'ValidationError') {
-      return res.status(400).json({ message: error.message });
+      return res.status(400).json({ success: false, message: error.message });
     }
-    return res.status(500).json({ message: 'Error interno del servidor al actualizar la actividad.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al actualizar la actividad.' });
   }
 };
 
@@ -314,28 +314,28 @@ const deleteEvent = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.isValidObjectId(id)) {
-    return res.status(400).json({ message: 'El id de la actividad no es valido.' });
+    return res.status(400).json({ success: false, message: 'El id de la actividad no es valido.' });
   }
 
   try {
     const event = await Event.findById(id);
 
     if (!event) {
-      return res.status(404).json({ message: 'Actividad no encontrada.' });
+      return res.status(404).json({ success: false, message: 'Actividad no encontrada.' });
     }
 
     const esDueno = event.organizer.toString() === req.user.id;
     const esAdmin = req.user.role === 'ADMIN';
 
     if (!esDueno && !esAdmin) {
-      return res.status(403).json({ message: 'No tenes permiso para eliminar esta actividad.' });
+      return res.status(403).json({ success: false, message: 'No tenes permiso para eliminar esta actividad.' });
     }
 
     await event.deleteOne();
 
     return res.status(200).json({ message: 'Actividad eliminada correctamente.' });
   } catch (error) {
-    return res.status(500).json({ message: 'Error interno del servidor al eliminar la actividad.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al eliminar la actividad.' });
   }
 };
 

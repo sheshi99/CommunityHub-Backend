@@ -23,7 +23,7 @@ app.use('/api/dashboard', dashboardRoutes);
 
 // Manejador simple de rutas no encontradas
 app.use((req, res) => {
-  res.status(404).json({ message: 'Ruta no encontrada' });
+  res.status(404).json({ success: false, message: 'Ruta no encontrada' });
 });
 
 module.exports = app;

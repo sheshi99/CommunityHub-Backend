@@ -406,9 +406,9 @@ const getDashboard = async (req, res) => {
       return res.status(200).json(await getUserDashboard(req.user.id));
     }
 
-    return res.status(403).json({ message: 'El rol del usuario no tiene acceso al dashboard.' });
+    return res.status(403).json({ success: false, message: 'El rol del usuario no tiene acceso al dashboard.' });
   } catch (error) {
-    return res.status(500).json({ message: 'Error interno del servidor al consultar el dashboard.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al consultar el dashboard.' });
   }
 };
 
