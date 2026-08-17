@@ -3,6 +3,7 @@ const Event = require('../models/Event');
 const Registration = require('../models/Registration');
 const Favorite = require('../models/Favorite');
 const Notification = require('../models/Notification');
+const mongoose = require('mongoose');
 
 const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -138,8 +139,15 @@ const getAdminDashboard = async () => {
 };
 
 const getOrganizerDashboard = async (userId) => {
-  const eventFilter = { organizer: userId };
+  const eventFilter = { organizer: new mongoose.Types.ObjectId(userId) };
   const organizedEventIds = await Event.find(eventFilter).distinct('_id');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const upcomingFilter = {
+    ...eventFilter,
+    status: 'PUBLISHED',
+    date: { $gte: today },
+  };
 
   const [
     activities,
@@ -152,6 +160,9 @@ const getOrganizerDashboard = async (userId) => {
     cancelledRegistrations,
     eventsByStatus,
     topEvents,
+    upcomingCount,
+    upcomingActivities,
+    capacityTotals,
   ] = await Promise.all([
     Event.countDocuments(eventFilter),
     Event.countDocuments({ ...eventFilter, status: 'DRAFT' }),
@@ -172,14 +183,61 @@ const getOrganizerDashboard = async (userId) => {
       { $sort: { registrationsCount: -1 } },
       { $limit: 5 },
     ]),
+    Event.countDocuments(upcomingFilter),
+    Event.find(upcomingFilter)
+      .select('title date time location image category maxCapacity status')
+      .populate('category', 'name')
+      .sort({ date: 1 })
+      .limit(3),
+    Event.aggregate([
+      { $match: upcomingFilter },
+      {
+        $lookup: {
+          from: 'registrations',
+          let: { eventId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$event', '$$eventId'] },
+                    { $eq: ['$status', 'CONFIRMED'] },
+                  ],
+                },
+              },
+            },
+          ],
+          as: 'confirmedParticipants',
+        },
+      },
+      {
+        $project: {
+          maxCapacity: 1,
+          participants: { $size: '$confirmedParticipants' },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalCapacity: { $sum: '$maxCapacity' },
+          occupiedCapacity: { $sum: '$participants' },
+        },
+      },
+    ]),
   ]);
 
   const statusMap = Object.fromEntries(eventsByStatus.map((entry) => [entry._id, entry.total]));
+  const capacity = capacityTotals[0] || { totalCapacity: 0, occupiedCapacity: 0 };
+  const availableCapacity = Math.max(0, capacity.totalCapacity - capacity.occupiedCapacity);
 
   return {
     role: 'ORGANIZER',
     generatedAt: new Date().toISOString(),
     stats: {
+      activitiesCreated: activities,
+      participants: confirmedRegistrations,
+      availableCapacity,
+      upcomingActivities: upcomingCount,
       activities,
       draftActivities,
       activeActivities,
@@ -209,6 +267,7 @@ const getOrganizerDashboard = async (userId) => {
         }))
       ),
     },
+    upcomingActivities,
   };
 };
 
