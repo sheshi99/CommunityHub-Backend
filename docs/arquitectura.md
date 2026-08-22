@@ -15,7 +15,7 @@ datos.
 | `src/routes` | Definicion de endpoints REST. |
 | `src/services` | Integraciones externas, incluida AWS Lambda. |
 | `src/utils` | Validaciones y funciones compartidas. |
-| `scripts` | Seeders y comprobaciones manuales. |
+| `scripts` | Seeders para preparar datos iniciales y de demostracion. |
 
 ## Autenticacion y autorizacion
 

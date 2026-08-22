@@ -43,7 +43,6 @@ La API estara disponible en `http://localhost:3000/api`.
 | `npm start` | Inicia el servidor con Node.js. |
 | `npm run seed:categories` | Crea categorias iniciales. |
 | `npm run seed:dashboard` | Genera datos de demostracion para dashboards. |
-| `npm run test:auth` | Ejecuta la comprobacion manual de JWT. |
 
 ## Documentacion
 
