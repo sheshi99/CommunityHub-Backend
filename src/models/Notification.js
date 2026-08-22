@@ -35,11 +35,19 @@ const notificationSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    reminderFor: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );
 
 notificationSchema.index({ user: 1, read: 1 });
+notificationSchema.index(
+  { user: 1, event: 1, type: 1, reminderFor: 1 },
+  { unique: true, partialFilterExpression: { type: 'EVENT_REMINDER' } }
+);
 
 module.exports = mongoose.model('Notification', notificationSchema);
 module.exports.NOTIFICATION_TYPES = NOTIFICATION_TYPES;
