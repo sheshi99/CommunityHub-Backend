@@ -6,7 +6,11 @@ const {
   updateEvent,
   deleteEvent,
 } = require('../controllers/eventController');
-const { registerForEvent, cancelRegistration } = require('../controllers/registrationController');
+const {
+  registerForEvent,
+  cancelRegistration,
+  getEventParticipants,
+} = require('../controllers/registrationController');
 const { addFavorite, removeFavorite } = require('../controllers/favoriteController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -24,6 +28,7 @@ router.delete('/:id', protect, authorize('ORGANIZER', 'ADMIN'), deleteEvent);
 // Inscripcion a una actividad: cualquier usuario autenticado
 router.post('/:id/register', protect, registerForEvent);
 router.delete('/:id/register', protect, cancelRegistration);
+router.get('/:id/participants', protect, authorize('ORGANIZER', 'ADMIN'), getEventParticipants);
 
 // Favoritos del usuario autenticado
 router.post('/:id/favorite', protect, addFavorite);

@@ -46,6 +46,7 @@ Los errores utilizan estados HTTP apropiados y el formato general:
 | `POST` | `/events` | Organizador o administrador | Crea una actividad. |
 | `PUT` | `/events/:id` | Propietario o administrador | Actualiza una actividad. |
 | `DELETE` | `/events/:id` | Propietario o administrador | Elimina una actividad sin inscripciones activas. |
+| `GET` | `/events/:id/participants` | Propietario o administrador | Lista participantes con inscripcion confirmada. |
 
 `GET /events` admite `search`, `category`, `date`, `location`, `available`,
 `organizer` y `status` como parametros de consulta.

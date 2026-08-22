@@ -194,4 +194,49 @@ const getMyRegistrations = async (req, res) => {
   }
 };
 
-module.exports = { registerForEvent, cancelRegistration, getMyRegistrations };
+// GET /api/events/:id/participants
+const getEventParticipants = async (req, res) => {
+  const { id: eventId } = req.params;
+
+  if (!mongoose.isValidObjectId(eventId)) {
+    return res.status(400).json({ success: false, message: 'El id de la actividad no es valido.' });
+  }
+
+  try {
+    const event = await Event.findById(eventId).select('organizer title');
+    if (!event) {
+      return res.status(404).json({ success: false, message: 'Actividad no encontrada.' });
+    }
+
+    const isOwner = event.organizer.toString() === req.user.id;
+    const isAdmin = req.user.role === 'ADMIN';
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'No tenes permiso para consultar los participantes de esta actividad.',
+      });
+    }
+
+    const participants = await Registration.find({
+      event: eventId,
+      status: 'CONFIRMED',
+    })
+      .select('user status createdAt')
+      .populate('user', 'firstName lastName email profileImage')
+      .sort({ createdAt: 1 });
+
+    return res.status(200).json(participants);
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor al consultar los participantes.',
+    });
+  }
+};
+
+module.exports = {
+  registerForEvent,
+  cancelRegistration,
+  getMyRegistrations,
+  getEventParticipants,
+};
