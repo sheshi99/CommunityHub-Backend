@@ -22,6 +22,7 @@ no debe agregarse a Git.
 | --- | --- |
 | `PORT` | Puerto HTTP del backend. |
 | `FRONTEND_URLS` | Origenes CORS permitidos, separados por comas. |
+| `EVENT_TIMEZONE_OFFSET` | Offset ISO 8601 usado para fecha y hora de actividades. |
 | `MONGODB_URI` | Cadena de conexion a MongoDB. |
 | `JWT_SECRET` | Secreto utilizado para firmar los JWT. |
 | `JWT_EXPIRES_IN` | Duracion de los JWT, por ejemplo `7d`. |

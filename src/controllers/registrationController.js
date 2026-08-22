@@ -8,6 +8,16 @@ const {
 
 const requestError = (status, message) => Object.assign(new Error(message), { status });
 
+const hasEventStarted = (event) => {
+  const configuredOffset = process.env.EVENT_TIMEZONE_OFFSET || '-06:00';
+  const timezoneOffset = /^[+-]\d{2}:\d{2}$/.test(configuredOffset) ? configuredOffset : '-06:00';
+  const date = event.date.toISOString().slice(0, 10);
+  const time = event.time.slice(0, 5);
+  const eventDateTime = new Date(`${date}T${time}:00${timezoneOffset}`);
+
+  return Number.isNaN(eventDateTime.getTime()) || eventDateTime <= new Date();
+};
+
 const lockEventCapacity = (eventId, session) => Event.updateOne(
   { _id: eventId },
   { $inc: { capacityVersion: 1 } },
@@ -68,6 +78,9 @@ const registerForEvent = async (req, res) => {
       }
       if (event.status !== 'PUBLISHED') {
         throw requestError(400, 'Solo es posible inscribirse a actividades publicadas.');
+      }
+      if (hasEventStarted(event)) {
+        throw requestError(400, 'No es posible inscribirse a una actividad que ya inicio o finalizo.');
       }
 
       // Esta escritura toma un bloqueo sobre la actividad. withTransaction
