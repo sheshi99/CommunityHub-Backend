@@ -6,6 +6,14 @@ const {
   notifyEventCapacityAvailable,
 } = require('../services/capacityNotificationService');
 
+const requestError = (status, message) => Object.assign(new Error(message), { status });
+
+const lockEventCapacity = (eventId, session) => Event.updateOne(
+  { _id: eventId },
+  { $inc: { capacityVersion: 1 } },
+  { session }
+);
+
 const notifyOrganizerIfFull = async (event, confirmedCountBeforeRegistration) => {
   if (confirmedCountBeforeRegistration + 1 !== event.maxCapacity) return;
 
@@ -45,62 +53,68 @@ const registerForEvent = async (req, res) => {
     return res.status(400).json({ success: false, message: 'El id de la actividad no es valido.' });
   }
 
+  const session = await mongoose.startSession();
+  let event;
+  let registration;
+  let confirmedCount = 0;
+  let responseStatus = 201;
+
   try {
-    const event = await Event.findById(eventId);
+    await session.withTransaction(async () => {
+      event = await Event.findById(eventId).session(session);
+      if (!event) throw requestError(404, 'Actividad no encontrada.');
+      if (event.organizer.toString() === req.user.id) {
+        throw requestError(403, 'No puedes inscribirte en una actividad que organizas.');
+      }
+      if (event.status !== 'PUBLISHED') {
+        throw requestError(400, 'Solo es posible inscribirse a actividades publicadas.');
+      }
 
-    if (!event) {
-      return res.status(404).json({ success: false, message: 'Actividad no encontrada.' });
-    }
+      // Esta escritura toma un bloqueo sobre la actividad. withTransaction
+      // reintenta si otra inscripcion concurrente modifico el mismo documento.
+      await lockEventCapacity(eventId, session);
 
-    if (event.organizer.toString() === req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'No puedes inscribirte en una actividad que organizas.',
-      });
-    }
+      registration = await Registration.findOne({ user: req.user.id, event: eventId }).session(session);
+      if (registration?.status === 'CONFIRMED') {
+        throw requestError(409, 'Ya estas inscripto en esta actividad.');
+      }
 
-    if (event.status !== 'PUBLISHED') {
-      return res.status(400).json({ success: false, message: 'Solo es posible inscribirse a actividades publicadas.' });
-    }
+      confirmedCount = await Registration.countDocuments({
+        event: eventId,
+        status: 'CONFIRMED',
+      }).session(session);
+      if (confirmedCount >= event.maxCapacity) {
+        throw requestError(409, 'No hay cupos disponibles para esta actividad.');
+      }
 
-    let registration = await Registration.findOne({ user: req.user.id, event: eventId });
-
-    if (registration && registration.status === 'CONFIRMED') {
-      return res.status(409).json({ success: false, message: 'Ya estas inscripto en esta actividad.' });
-    }
-
-    // El cupo se calcula contra las inscripciones CONFIRMED actuales,
-    // igual que la disponibilidad que expone GET /api/events.
-    const confirmedCount = await Registration.countDocuments({ event: eventId, status: 'CONFIRMED' });
-    if (confirmedCount >= event.maxCapacity) {
-      return res.status(409).json({ success: false, message: 'No hay cupos disponibles para esta actividad.' });
-    }
-
-    if (registration) {
-      // Ya existia una inscripcion cancelada previamente: se reactiva
-      // (el indice unico user+event no permite crear un segundo documento).
-      registration.status = 'CONFIRMED';
-      await registration.save();
-      await notifyOrganizerIfFull(event, confirmedCount);
-      return res.status(200).json(registration);
-    }
-
-    registration = await Registration.create({
-      user: req.user.id,
-      event: eventId,
-      status: 'CONFIRMED',
+      if (registration) {
+        registration.status = 'CONFIRMED';
+        await registration.save({ session });
+        responseStatus = 200;
+      } else {
+        [registration] = await Registration.create([{
+          user: req.user.id,
+          event: eventId,
+          status: 'CONFIRMED',
+        }], { session });
+      }
     });
 
     await notifyOrganizerIfFull(event, confirmedCount);
 
-    return res.status(201)
+    return res.status(responseStatus)
       .location(`/api/events/${eventId}/register`)
       .json(registration);
   } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
     if (error.code === 11000) {
       return res.status(409).json({ success: false, message: 'Ya estas inscripto en esta actividad.' });
     }
     return res.status(500).json({ success: false, message: 'Error interno del servidor al procesar la inscripcion.' });
+  } finally {
+    await session.endSession();
   }
 };
 

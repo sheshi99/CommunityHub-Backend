@@ -1,10 +1,11 @@
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
 /**
  * Verifica el JWT enviado en el header "Authorization: Bearer <token>".
  * Si es valido, adjunta { id, role } en req.user y continua.
  */
-const protect = (req, res, next) => {
+const protect = async (req, res, next) => {
   if (!process.env.JWT_SECRET) {
     return res.status(500).json({ success: false, message: 'Error de configuracion del servidor' });
   }
@@ -21,12 +22,23 @@ const protect = (req, res, next) => {
 
   const token = authHeader.split(' ')[1];
 
+  let decoded;
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = { id: decoded.sub, role: decoded.role };
-    next();
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
   } catch (error) {
     return res.status(401).json({ success: false, message: 'No autorizado, token invalido o expirado' });
+  }
+
+  try {
+    const user = await User.findById(decoded.sub).select('role');
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'No autorizado, el usuario ya no existe' });
+    }
+
+    req.user = { id: user._id.toString(), role: user.role };
+    next();
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al validar la sesion' });
   }
 };
 

@@ -51,6 +51,13 @@ const eventSchema = new mongoose.Schema(
       enum: EVENT_STATUS,
       default: 'DRAFT',
     },
+    // Se incrementa dentro de las transacciones de inscripcion para que dos
+    // solicitudes concurrentes no puedan reservar el ultimo cupo a la vez.
+    capacityVersion: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
   },
   { timestamps: true }
 );
