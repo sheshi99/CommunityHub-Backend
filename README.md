@@ -41,7 +41,6 @@ La API estara disponible en `http://localhost:3000/api`.
 | --- | --- |
 | `npm run dev` | Inicia el servidor con recarga automatica. |
 | `npm start` | Inicia el servidor con Node.js. |
-| `npm run seed:categories` | Crea categorias iniciales. |
 | `npm run seed:dashboard` | Genera datos de demostracion para dashboards. |
 
 ## Documentacion
