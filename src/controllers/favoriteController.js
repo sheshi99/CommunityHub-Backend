@@ -66,7 +66,7 @@ const getMyFavorites = async (req, res) => {
         select: 'title description date time location image status maxCapacity category organizer',
         populate: [
           { path: 'category', select: 'name' },
-          { path: 'organizer', select: 'firstName lastName email' },
+          { path: 'organizer', select: 'firstName lastName email role' },
         ],
       })
       .sort({ createdAt: -1 });

@@ -168,7 +168,7 @@ const getEvents = async (req, res) => {
 
     const populatedEvents = await Event.populate(events, [
       { path: 'category', select: 'name' },
-      { path: 'organizer', select: 'firstName lastName email' },
+      { path: 'organizer', select: 'firstName lastName email role' },
     ]);
 
     return res.status(200).json(populatedEvents);
@@ -188,7 +188,7 @@ const getEventById = async (req, res) => {
   try {
     const event = await Event.findById(id)
       .populate('category', 'name')
-      .populate('organizer', 'firstName lastName email');
+      .populate('organizer', 'firstName lastName email role');
 
     if (!event) {
       return res.status(404).json({ success: false, message: 'Actividad no encontrada.' });
