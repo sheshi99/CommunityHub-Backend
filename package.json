@@ -10,7 +10,7 @@
     "seed:categories": "node scripts/seed-categories.js",
     "seed:dashboard": "node scripts/seed-dashboard.js"
   },
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@aws-sdk/client-lambda": "^3.1111.0",
     "bcryptjs": "^2.4.3",
