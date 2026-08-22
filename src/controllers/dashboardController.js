@@ -272,8 +272,9 @@ const getOrganizerDashboard = async (userId) => {
 };
 
 const getUserDashboard = async (userId) => {
-  const confirmedFilter = { user: userId, status: 'CONFIRMED' };
-  const cancelledFilter = { user: userId, status: 'CANCELLED' };
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+  const confirmedFilter = { user: userObjectId, status: 'CONFIRMED' };
+  const cancelledFilter = { user: userObjectId, status: 'CANCELLED' };
   const registeredEventIds = await Registration.find(confirmedFilter).distinct('event');
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -305,8 +306,8 @@ const getUserDashboard = async (userId) => {
   ] = await Promise.all([
     Registration.countDocuments(confirmedFilter),
     Registration.countDocuments(cancelledFilter),
-    Favorite.countDocuments({ user: userId }),
-    Notification.countDocuments({ user: userId, read: false }),
+    Favorite.countDocuments({ user: userObjectId }),
+    Notification.countDocuments({ user: userObjectId, read: false }),
     Event.countDocuments(upcomingFilter),
     Event.find(upcomingFilter)
       .select('title date time location image category')
@@ -319,7 +320,7 @@ const getUserDashboard = async (userId) => {
       .populate('category', 'name')
       .sort({ date: -1 })
       .limit(5),
-    Notification.find({ user: userId })
+    Notification.find({ user: userObjectId })
       .select('type message read event createdAt')
       .populate('event', 'title date status')
       .sort({ createdAt: -1 })
@@ -327,7 +328,7 @@ const getUserDashboard = async (userId) => {
     Registration.aggregate([
       {
         $match: {
-          user: userId,
+          user: userObjectId,
           status: 'CONFIRMED',
         },
       },
