@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Category = require('../models/Category');
 const Event = require('../models/Event');
+const { escapeRegex } = require('../utils/validators');
 
 // GET /api/categories
 const getCategories = async (req, res) => {
@@ -24,7 +25,7 @@ const createCategory = async (req, res) => {
     const nombreTrim = name.trim();
 
     // Chequeo case-insensitive para evitar duplicados como "Cultura" vs "cultura"
-    const yaExiste = await Category.findOne({ name: new RegExp(`^${nombreTrim}$`, 'i') });
+    const yaExiste = await Category.findOne({ name: new RegExp(`^${escapeRegex(nombreTrim)}$`, 'i') });
     if (yaExiste) {
       return res.status(409).json({ success: false, message: 'Ya existe una categoria con ese nombre.' });
     }
@@ -73,7 +74,7 @@ const updateCategory = async (req, res) => {
       }
       const nombreTrim = name.trim();
       const yaExiste = await Category.findOne({
-        name: new RegExp(`^${nombreTrim}$`, 'i'),
+        name: new RegExp(`^${escapeRegex(nombreTrim)}$`, 'i'),
         _id: { $ne: id },
       });
       if (yaExiste) {

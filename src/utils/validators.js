@@ -17,4 +17,7 @@ const validatePasswordComplexity = (password) => {
   return hasLower && hasUpper && hasNumber && hasSpecial && minLength;
 };
 
-module.exports = { validateEmailFormat, validatePasswordComplexity };
+// Convierte texto del usuario en un valor literal seguro para RegExp.
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+module.exports = { validateEmailFormat, validatePasswordComplexity, escapeRegex };

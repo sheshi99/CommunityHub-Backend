@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 const Event = require('../models/Event');
 const Category = require('../models/Category');
 const Registration = require('../models/Registration');
+const Favorite = require('../models/Favorite');
+const Notification = require('../models/Notification');
+const { escapeRegex } = require('../utils/validators');
 
 // Valida los datos recibidos para crear una actividad
 const validateEventData = ({ title, description, category, date, time, location, maxCapacity }) => {
@@ -95,7 +98,7 @@ const getEvents = async (req, res) => {
 
     // Busqueda de texto libre sobre titulo y descripcion
     if (search && search.trim()) {
-      const regex = new RegExp(search.trim(), 'i');
+      const regex = new RegExp(escapeRegex(search.trim()), 'i');
       match.$or = [{ title: regex }, { description: regex }];
     }
 
@@ -103,7 +106,7 @@ const getEvents = async (req, res) => {
     if (organizer) match.organizer = new mongoose.Types.ObjectId(organizer);
     if (status) match.status = status;
     if (location && location.trim()) {
-      match.location = new RegExp(location.trim(), 'i');
+      match.location = new RegExp(escapeRegex(location.trim()), 'i');
     }
 
     if (date) {
@@ -317,25 +320,49 @@ const deleteEvent = async (req, res) => {
     return res.status(400).json({ success: false, message: 'El id de la actividad no es valido.' });
   }
 
+  let session;
   try {
-    const event = await Event.findById(id);
+    session = await mongoose.startSession();
+    await session.withTransaction(async () => {
+      const event = await Event.findById(id).session(session);
 
-    if (!event) {
-      return res.status(404).json({ success: false, message: 'Actividad no encontrada.' });
-    }
+      if (!event) {
+        throw Object.assign(new Error('Actividad no encontrada.'), { status: 404 });
+      }
 
-    const esDueno = event.organizer.toString() === req.user.id;
-    const esAdmin = req.user.role === 'ADMIN';
+      const esDueno = event.organizer.toString() === req.user.id;
+      const esAdmin = req.user.role === 'ADMIN';
 
-    if (!esDueno && !esAdmin) {
-      return res.status(403).json({ success: false, message: 'No tenes permiso para eliminar esta actividad.' });
-    }
+      if (!esDueno && !esAdmin) {
+        throw Object.assign(new Error('No tenes permiso para eliminar esta actividad.'), { status: 403 });
+      }
 
-    await event.deleteOne();
+      const confirmedRegistrations = await Registration.countDocuments({
+        event: id,
+        status: 'CONFIRMED',
+      }).session(session);
+      if (confirmedRegistrations > 0) {
+        throw Object.assign(
+          new Error('No se puede eliminar la actividad porque tiene inscripciones activas.'),
+          { status: 409 }
+        );
+      }
+
+      // Sin inscripciones activas, se limpian registros cancelados y referencias secundarias.
+      await Registration.deleteMany({ event: id }, { session });
+      await Favorite.deleteMany({ event: id }, { session });
+      await Notification.updateMany({ event: id }, { $set: { event: null } }, { session });
+      await event.deleteOne({ session });
+    });
 
     return res.status(200).json({ message: 'Actividad eliminada correctamente.' });
   } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
     return res.status(500).json({ success: false, message: 'Error interno del servidor al eliminar la actividad.' });
+  } finally {
+    if (session) await session.endSession();
   }
 };
 
