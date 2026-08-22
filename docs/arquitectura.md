@@ -38,3 +38,10 @@ Cuando se ocupa el ultimo cupo, el servicio invoca asincronamente una Lambda.
 La inscripcion no se revierte si AWS falla, porque la operacion principal ya
 fue confirmada. El contrato del evento esta en
 [LAMBDA_CAPACITY_CONTRACT.md](LAMBDA_CAPACITY_CONTRACT.md).
+
+## Notificaciones transaccionales
+
+El backend crea una notificacion para el usuario al confirmar una inscripcion.
+Cuando una actividad publicada se actualiza o cancela, crea notificaciones para
+todos sus participantes con inscripcion confirmada. Estos avisos responden a
+acciones inmediatas; los recordatorios programados se delegan a AWS Lambda.
