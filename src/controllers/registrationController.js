@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Registration = require('../models/Registration');
 const Event = require('../models/Event');
+const Notification = require('../models/Notification');
 const {
   notifyEventCapacityReached,
   notifyEventCapacityAvailable,
@@ -111,6 +112,13 @@ const registerForEvent = async (req, res) => {
           status: 'CONFIRMED',
         }], { session });
       }
+
+      await Notification.create([{
+        user: req.user.id,
+        event: eventId,
+        type: 'REGISTRATION_CONFIRMED',
+        message: `Tu inscripcion a "${event.title}" fue confirmada.`,
+      }], { session });
     });
 
     await notifyOrganizerIfFull(event, confirmedCount);
