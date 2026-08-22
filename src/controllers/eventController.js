@@ -5,6 +5,7 @@ const Registration = require('../models/Registration');
 const Favorite = require('../models/Favorite');
 const Notification = require('../models/Notification');
 const { escapeRegex } = require('../utils/validators');
+const { notifyConfirmedParticipants } = require('../services/participantNotificationService');
 
 // Valida los datos recibidos para crear una actividad
 const validateEventData = ({ title, description, category, date, time, location, maxCapacity }) => {
@@ -232,6 +233,17 @@ const updateEvent = async (req, res) => {
     }
 
     const { title, description, category, date, time, location, maxCapacity, image, status } = req.body;
+    const previousStatus = event.status;
+    const participantRelevantFields = [
+      'title',
+      'description',
+      'category',
+      'date',
+      'time',
+      'location',
+      'maxCapacity',
+      'image',
+    ];
 
     if (title !== undefined) {
       if (!title.trim()) {
@@ -311,7 +323,31 @@ const updateEvent = async (req, res) => {
       event.status = status; // el enum del schema valida que sea un valor permitido
     }
 
+    const hasParticipantRelevantChanges = participantRelevantFields.some(
+      (field) => event.isModified(field)
+    );
     const updatedEvent = await event.save();
+
+    try {
+      if (status === 'CANCELLED' && previousStatus !== 'CANCELLED') {
+        const cancellationActor = req.user.role === 'ADMIN'
+          ? 'un administrador'
+          : 'el organizador';
+        await notifyConfirmedParticipants({
+          eventId: updatedEvent._id,
+          type: 'EVENT_CANCELLED',
+          message: `La actividad "${updatedEvent.title}" fue cancelada por ${cancellationActor}.`,
+        });
+      } else if (hasParticipantRelevantChanges && previousStatus === 'PUBLISHED') {
+        await notifyConfirmedParticipants({
+          eventId: updatedEvent._id,
+          type: 'EVENT_UPDATED',
+          message: `La actividad "${updatedEvent.title}" fue actualizada. Revisa la informacion del evento.`,
+        });
+      }
+    } catch (notificationError) {
+      console.error(`No se pudieron crear las notificaciones de la actividad: ${notificationError.message}`);
+    }
 
     return res.status(200).json(updatedEvent);
   } catch (error) {
