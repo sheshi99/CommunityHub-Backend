@@ -290,6 +290,16 @@ const updateEvent = async (req, res) => {
       if (isNaN(capacidad) || capacidad <= 0) {
         return res.status(400).json({ success: false, message: 'La capacidad maxima debe ser un numero mayor a 0.' });
       }
+      const confirmedRegistrations = await Registration.countDocuments({
+        event: event._id,
+        status: 'CONFIRMED',
+      });
+      if (capacidad < confirmedRegistrations) {
+        return res.status(409).json({
+          success: false,
+          message: `La capacidad no puede ser menor que las ${confirmedRegistrations} inscripciones activas.`,
+        });
+      }
       event.maxCapacity = capacidad;
     }
 
