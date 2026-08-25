@@ -9,6 +9,15 @@ con una funcion AWS Lambda cuando una actividad alcanza su capacidad maxima.
 
 Node.js, Express.js, MongoDB, Mongoose, JWT, bcryptjs y AWS SDK.
 
+
+## Repositorios del proyecto
+
+CommunityHub-Backend es uno de los tres repositorios del proyecto:
+
+- Backend (este respositorio)
+- Fronted: https://github.com/walbyn504/CommunityHub-Frontend.git
+- Lambda: https://github.com/walbyn504/CommunityHub-Lambda-Notifications.git
+
 ## Inicio rapido
 
 ```bash
