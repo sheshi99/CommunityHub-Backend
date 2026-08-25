@@ -6,6 +6,7 @@ const Notification = require('../models/Notification');
 const mongoose = require('mongoose');
 
 const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+const DASHBOARD_TIME_ZONE = 'America/Costa_Rica';
 
 const buildChartSeries = (items) => ({
   labels: items.map((item) => item.label),
@@ -38,8 +39,8 @@ const getMonthlyRegistrationTrend = async () => {
     {
       $group: {
         _id: {
-          year: { $year: '$createdAt' },
-          month: { $month: '$createdAt' },
+          year: { $year: { date: '$createdAt', timezone: DASHBOARD_TIME_ZONE } },
+          month: { $month: { date: '$createdAt', timezone: DASHBOARD_TIME_ZONE } },
         },
         total: { $sum: 1 },
       },

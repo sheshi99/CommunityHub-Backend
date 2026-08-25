@@ -25,7 +25,7 @@ const validateEventData = ({ title, description, category, date, time, location,
     return 'La categoria no es valida.';
   }
 
-  const parsedDate = new Date(date);
+  const parsedDate = new Date(`${date}T00:00:00`);
   if (isNaN(parsedDate.getTime())) {
     return 'La fecha no es valida.';
   }
@@ -63,7 +63,7 @@ const createEvent = async (req, res) => {
       title: title.trim(),
       description: description.trim(),
       category,
-      date,
+      date: new Date(`${date}T00:00:00`),
       time: time.trim(),
       location: location.trim(),
       maxCapacity: Number(maxCapacity),
@@ -111,7 +111,7 @@ const getEvents = async (req, res) => {
     }
 
     if (date) {
-      const parsedDate = new Date(date);
+      const parsedDate = new Date(`${date}T00:00:00`);
       if (isNaN(parsedDate.getTime())) {
         return res.status(400).json({ success: false, message: 'La fecha indicada no es valida.' });
       }
@@ -271,7 +271,7 @@ const updateEvent = async (req, res) => {
     }
 
     if (date !== undefined) {
-      const parsedDate = new Date(date);
+      const parsedDate = new Date(`${date}T00:00:00`);
       if (isNaN(parsedDate.getTime())) {
         return res.status(400).json({ success: false, message: 'La fecha no es valida.' });
       }
@@ -280,7 +280,7 @@ const updateEvent = async (req, res) => {
       if (parsedDate < hoy) {
         return res.status(400).json({ success: false, message: 'No se permiten actividades con fecha pasada.' });
       }
-      event.date = date;
+      event.date = parsedDate;
     }
 
     if (time !== undefined) {
