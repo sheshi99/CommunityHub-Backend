@@ -1,7 +1,5 @@
 /**
- * Seeder de datos de prueba para los 3 dashboards (ADMIN, ORGANIZER, USER).
- * Permite tener un conjunto de eventos, inscripciones, favoritos y notificaciones
- * que genere datos estadisticos y de tendencia para mostrar en los dashboards.
+ * Genera datos de prueba para los dashboards.
  * Uso: npm run seed:dashboard
  */
 require('dotenv').config();
@@ -21,9 +19,7 @@ const CATEGORIAS = [
   { name: 'Comunidad', description: 'Actividades vecinales y sociales' },
 ];
 
-// Fecha fija de la demostracion: miercoles 26 de agosto de 2026, 9:00 a. m.
-// en Costa Rica. No se usa el reloj del equipo para que los datos sean los
-// mismos durante la presentacion y cada vez que se vuelva a ejecutar el seed.
+// Fecha fija para generar siempre la misma demostracion.
 const today = new Date('2026-08-26T09:00:00-06:00');
 
 const monthsAgo = (n, day = 15) => {
@@ -40,18 +36,14 @@ const daysFromNow = (n) => {
   return d;
 };
 
-// N dias antes de una fecha dada -- se usa para fijar el createdAt de los
-// eventos "historicos" antes de su date, tal como exige validateEventData().
+// Calcula una fecha anterior a otra.
 const daysBefore = (date, n) => {
   const d = new Date(date);
   d.setDate(d.getDate() - n);
   return d;
 };
 
-// N dias antes de "hoy" (a diferencia de monthsAgo, que fija un dia-del-mes
-// puntual, este offset es siempre relativo a "today" -- por eso es el que se
-// usa para timestamps que deben quedar DESPUES del createdAt de un evento
-// "futuro", sin importar que dia del mes se corra el seeder).
+// Calcula una fecha anterior al dia de la demostracion.
 const daysAgo = (n) => {
   const d = new Date(today);
   d.setDate(d.getDate() - n);
@@ -90,15 +82,11 @@ const ensureCategories = async () => {
   return map;
 };
 
-// `createdAt` es opcional: si se pasa, sobreescribe el timestamp automatico
-// para que un evento "historico" quede con una fecha de creacion anterior a
-// su `date`, como habria pasado si se hubiera creado de verdad via la API
-// (que rechaza fecha pasada) y el tiempo simplemente hubiera transcurrido.
+// Permite asignar fechas de creacion historicas.
 const ensureEvent = async ({ createdAt, ...data }) => {
   let event = await Event.findOne({ title: data.title, organizer: data.organizer });
   if (event) {
-    // Una nueva ejecucion debe dejar la misma fotografia de la demo, aunque
-    // el evento ya hubiera sido creado por una ejecucion anterior.
+    // Restaura los datos esperados en cada ejecucion.
     await Event.collection.updateOne(
       { _id: event._id },
       { $set: { ...data, ...(createdAt ? { createdAt, updatedAt: createdAt } : {}) } }
@@ -108,9 +96,7 @@ const ensureEvent = async ({ createdAt, ...data }) => {
   }
   event = await Event.create(data);
   if (createdAt) {
-    // Mongoose 8 protege "createdAt" incluso pasando {timestamps:false} en
-    // updateOne: silenciosamente no lo cambia. Se usa el driver nativo
-    // (.collection) para saltear ese comportamiento y forzar la fecha real.
+    // El driver nativo permite modificar el createdAt protegido por Mongoose.
     await Event.collection.updateOne({ _id: event._id }, { $set: { createdAt, updatedAt: createdAt } });
   }
   console.log(`Evento creado: ${event.title} (${event.status})`);
@@ -142,10 +128,7 @@ const ensureFavorite = async (userId, eventId) => {
   return fav;
 };
 
-// Misma clave de deduplicacion (user + event + type) que exige el contrato
-// de la Lambda en docs/LAMBDA_CAPACITY_CONTRACT.md. `createdAt` es opcional,
-// igual que en ensureEvent/ensureRegistration, para poder fechar la
-// notificacion en el mismo momento que la accion real que la origino.
+// Deduplica por usuario, evento y tipo, como establece el contrato Lambda.
 const ensureNotification = async ({ createdAt, ...data }) => {
   const existing = await Notification.findOne({
     user: data.user,
@@ -240,14 +223,11 @@ const run = async () => {
       date: daysFromNow(3), // sabado 29 de agosto, el proximo evento de la demo
       time: '17:30',
       location: 'Salon Comunal',
-      // capacidad chica y a proposito IGUAL a la cantidad de confirmados que
-      // se crean mas abajo, para que quede realmente lleno (no "casi").
+      // Capacidad igual al total de inscripciones de prueba.
       maxCapacity: 2,
       organizer: organizer._id,
       status: 'PUBLISHED',
-      // createdAt explicito para que las inscripciones de mas abajo (que
-      // pasan por daysAgo, no por daysBefore) queden garantizadas DESPUES de
-      // que el evento exista, sin importar que dia del mes se corra el seed.
+      // Garantiza que el evento exista antes de sus inscripciones.
       createdAt: daysAgo(6),
     }),
     hackathon: await ensureEvent({
@@ -288,13 +268,7 @@ const run = async () => {
     }),
   };
 
-  // Inscripciones del usuario USER: historial + proximos + una cancelada.
-  // Cada createdAt queda despues del createdAt del evento y antes/en su date
-  // (te registras despues de que el evento existe y, salvo la cancelada,
-  // antes de que ocurra). El mismo timestamp se reutiliza para la
-  // notificacion REGISTRATION_CONFIRMED de abajo, tal como
-  // registrationController.registerForEvent() crea ambas cosas juntas en la
-  // misma transaccion.
+  // Fechas coherentes para inscripciones y sus notificaciones.
   const reactWorkshopRegAt = daysBefore(reactWorkshopDate, 10);
   const torneoFutbolRegAt = daysBefore(torneoFutbolDate, 5);
   const feriaCulturalUserRegAt = daysBefore(feriaCulturalDate, 3);
@@ -355,10 +329,7 @@ const run = async () => {
     createdAt: hackathonRegAt,
   });
 
-  // Se registro (confirmada, con su notificacion) y la cancelo despues
-  // (createdAt != updatedAt). cancelRegistration() no borra la notificacion
-  // original ni crea una nueva para el propio usuario, asi que la
-  // REGISTRATION_CONFIRMED queda tal cual con la fecha de la confirmacion.
+  // Conserva la notificacion original de una inscripcion luego cancelada.
   await ensureRegistration(user._id, events.maratonOtono._id, 'CANCELLED', maratonOtonoConfirmedAt, maratonOtonoCancelledAt);
   await ensureNotification({
     user: user._id,
@@ -369,12 +340,7 @@ const run = async () => {
     createdAt: maratonOtonoConfirmedAt,
   });
 
-  // El admin tambien participa en algunos eventos, para que el total global
-  // de inscripciones (dashboard ADMIN) no dependa de un solo usuario y la
-  // tendencia mensual tenga mas puntos. El organizador NO se inscribe en
-  // ningun evento: registerForEvent() prohibe inscribirse a la propia
-  // actividad (ver registrationController.js) y aqui todos los eventos son
-  // suyos, asi que nunca podria ser participante de ninguno.
+  // El admin aporta variedad a las estadisticas globales.
   await ensureRegistration(admin._id, events.feriaCultural._id, 'CONFIRMED', feriaCulturalAdminRegAt);
   await ensureNotification({
     user: admin._id,
@@ -385,8 +351,7 @@ const run = async () => {
     createdAt: feriaCulturalAdminRegAt,
   });
 
-  // Completa el cupo (2/2) de "Encuentro Vecinal de Agosto" junto con el
-  // registro del usuario -> dispara realmente notifyOrganizerIfFull().
+  // Completa el cupo del encuentro vecinal.
   await ensureRegistration(admin._id, events.encuentroVecinal._id, 'CONFIRMED', encuentroVecinalAdminRegAt);
   await ensureNotification({
     user: admin._id,
@@ -397,25 +362,12 @@ const run = async () => {
     createdAt: encuentroVecinalAdminRegAt,
   });
 
-  // Favoritos del usuario (addFavorite no restringe por status/fecha del
-  // evento, solo que exista, asi que cualquier evento existente es valido).
+  // Favoritos de prueba del usuario.
   await ensureFavorite(user._id, events.feriaCultural._id);
   await ensureFavorite(user._id, events.hackathon._id);
   await ensureFavorite(user._id, events.maratonOtono._id);
 
-  // El sistema real genera notificaciones desde tres lugares:
-  // - registrationController.registerForEvent() crea REGISTRATION_CONFIRMED
-  //   al confirmar una inscripcion (replicado arriba, junto a cada
-  //   ensureRegistration en estado CONFIRMED).
-  // - eventController.updateEvent() crea EVENT_CANCELLED / EVENT_UPDATED
-  //   cuando se cancela o edita una actividad PUBLISHED con inscriptos.
-  //   Ningun evento de este seed cambia de estado despues de creado (se
-  //   crean ya con su status final), asi que ese caso no aplica aqui.
-  // - La Lambda externa (docs/LAMBDA_CAPACITY_CONTRACT.md) crea
-  //   EVENT_CAPACITY_REACHED cuando una inscripcion ocupa el ultimo cupo,
-  //   como el de "Encuentro Vecinal de Agosto" (2/2). Se replica a mano
-  //   abajo, con el mismo formato de mensaje que especifica ese contrato,
-  //   porque el seeder no invoca la Lambda real.
+  // Simula la notificacion que la Lambda genera al llenar un evento.
   await ensureNotification({
     user: organizer._id,
     event: events.encuentroVecinal._id,
