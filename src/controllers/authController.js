@@ -39,7 +39,7 @@ const register = async (req, res) => {
     // 2. Verificar si el correo ya existe
     const existingUser = await User.findOne({ email: email.trim().toLowerCase() });
     if (existingUser) {
-      return res.status(400).json({ success: false, message: 'El correo electronico ya esta registrado.' });
+      return res.status(409).json({ success: false, message: 'El correo electronico ya esta registrado.' });
     }
 
     // 3. Encriptar contrasena
@@ -66,6 +66,9 @@ const register = async (req, res) => {
         role: savedUser.role,
       });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({ success: false, message: 'El correo electronico ya esta registrado.' });
+    }
     return res.status(500).json({
       success: false,
       message: 'Error interno del servidor al registrar el usuario.',
